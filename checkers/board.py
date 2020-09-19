@@ -62,13 +62,11 @@ class Board:
 			return self.board[row][col] == 0
 		return None
 
-	def get_valid_moves(self, piece, fstmove=True, skipped=[]):
+	def get_valid_moves(self, piece, fstmove=None, skipped=[]):
 		all_moves = {}
 		row, col = piece.y // SQUARE_SIZE, piece.x // SQUARE_SIZE
-		left_case = self.get_next_case((row,col), piece.direction, -1)
-		right_case = self.get_next_case((row,col), piece.direction, +1)
-		left_moves = self.check_case_moves(piece,left_case, fstmove, -1, skipped)
-		right_moves = self.check_case_moves(piece,right_case, fstmove, +1, skipped)
+		left_moves = self.check_case_moves(piece,(row,col), fstmove, -1, skipped)
+		right_moves = self.check_case_moves(piece,(row, col), fstmove, +1, skipped)
 		all_moves.update(right_moves)
 		all_moves.update(left_moves)
 
@@ -77,39 +75,46 @@ class Board:
 		return all_moves
 
 	def check_case_moves(self, piece, case, fstmove, direc, skipped):
+		case = self.get_next_case(case, piece.direction, direc)
 		if fstmove: skipped=[]
 		if case and (0<=case[0]<=7) and (0<=case[1]<=7):
 			moves = defaultdict(list)
-			if self.is_empty(*case) and fstmove:
-				moves[case] = []
-				if piece.king:
-					next_case = self.get_next_case(case, piece.direction, direc)
-					while next_case:
-						if self.is_empty(*next_case):
-							moves[next_case]
-						if not self.is_empty(*next_case) and self.get_piece(*next_case).color != piece.color:
-							after_kill = self.get_next_case(next_case, piece.direction, direc)
-							if after_kill and self.is_empty(*after_kill):
-								moves[after_kill].append(next_case)
+			if piece.king:
+				while case:
+					if self.is_empty(*case):
+						moves[case]
+						if not fstmove:
+							rev_diag_moves = self.check_rev_diagonal(piece, case)
+							moves.update(rev_diag_moves)
 
-						next_case = self.get_next_case(next_case, piece.direction, direc)
-
-			elif self.is_empty(*case) and piece.king and not fstmove:
-				rev_diag_moves = self.check_rev_diagonal(case, piece.direction, piece.color)
-				moves.update(rev_diag_moves)
-
-			elif not self.is_empty(*case) and self.get_piece(*case).color != piece.color:
-				next_case = self.get_next_case(case, piece.direction, direc)
-				if self.is_empty(*next_case):
-					skip = self.get_piece(*case)
-					row_s, col_s = skip.y // SQUARE_SIZE, skip.x // SQUARE_SIZE
-					skipped.append((row_s, col_s))
-					skipped = list(set(skipped))
-					moves[next_case].extend(skipped)
-					if piece.king:
-						other_moves = self.check_case_moves(piece, next_case, False, direc, skipped)
-						moves.update(other_moves)
+					elif not self.is_empty(*case) and self.get_piece(*case).color != piece.color:
+						next_case = self.get_next_case(case, piece.direction, direc)
+						if next_case and self.is_empty(*next_case):
+							fstmove = False
+							moves[next_case].append(case)
+							rev_diag_moves = self.check_rev_diagonal(piece, next_case)
+							moves.update(rev_diag_moves)
+						else:
+							break
 					else:
+						break
+
+
+					case = self.get_next_case(case, piece.direction, direc)
+
+			else:
+
+				if self.is_empty(*case) and fstmove:
+					moves[case]
+
+				elif not self.is_empty(*case) and self.get_piece(*case).color != piece.color:
+					next_case = self.get_next_case(case, piece.direction, direc)
+					if self.is_empty(*next_case):
+						skip = self.get_piece(*case)
+						row_s, col_s = skip.y // SQUARE_SIZE, skip.x // SQUARE_SIZE
+						skipped.append((row_s, col_s))
+						skipped = list(set(skipped))
+						moves[next_case].extend(skipped)
 						TestPiece = Piece(*next_case, piece.color)
 						other_moves = self.get_valid_moves(TestPiece, False, skipped)
 						moves.update(other_moves)
@@ -122,34 +127,37 @@ class Board:
 			return next_case 
 		return None
 
-	def check_rev_diagonal(self, case, direction, color):
+	def check_rev_diagonal(self, piece, case):
 		to_return = dict()
-		down = self.get_next_case(case, direction, +1)
-		up = self.get_next_case(case, -direction, -1)
-		down_moves = self.check_diagonal(down, direction, +1, color)
-		up_moves = self.check_diagonal(up, -direction, -1, color)
+		row, col = piece.y // SQUARE_SIZE, piece.x // SQUARE_SIZE
+		if col > case[1]:
+			down_moves = self.check_diagonal(piece, case, piece.direction, 1)
+			up_moves = self.check_diagonal(piece, case, -piece.direction, -1)
+		else:
+			down_moves = self.check_diagonal(piece, case, piece.direction, -1)
+			up_moves = self.check_diagonal(piece, case, -piece.direction, 1)
+
 		to_return.update(down_moves)
 		to_return.update(up_moves)
 		return to_return
 
-	def check_diagonal(self, to_check, row_dir, col_dir, color):
+	def check_diagonal(self, piece, case, row_dir, col_dir):
+		to_check = self.get_next_case(case, row_dir, col_dir)
 		print(to_check)
-		checked = dict()
-		temp_moves = defaultdict(list)
-		if to_check and (0<=to_check[0]<=7) and (0<=to_check[1]<=7):
-			if self.is_empty(*to_check):
-				temp_moves[to_check]
-				next_case = self.get_next_case(to_check, row_dir, col_dir)
-				res = self.check_diagonal(next_case, row_dir, col_dir, color)
-				checked.update(res)
-
-			elif not self.is_empty(*to_check) and color != self.get_piece(*to_check).color:
+		checked = defaultdict(list)
+		while to_check:
+			if not self.is_empty(*to_check) and piece.color != self.get_piece(*to_check).color:
 				next_case = self.get_next_case(to_check, row_dir, col_dir)
 				if next_case and self.is_empty(*next_case):
-					temp_moves[next_case].append(to_check)
-					checked.update(temp_moves)
-					res = self.check_rev_diagonal(next_case, row_dir, color)
+					checked[next_case].append(to_check)
+					res = self.check_rev_diagonal(piece, next_case)
 					checked.update(res)
+				else:
+					break
+			else:
+				break
+
+			to_check = self.get_next_case(to_check, row_dir, col_dir)
 
 		return checked
 
