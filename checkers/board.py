@@ -112,8 +112,8 @@ class Board:
 					next_case = self.get_next_case(case, piece.direction, direc)
 					if next_case and self.is_empty(*next_case):
 						skip = self.get_piece(*case)
-						row_s, col_s = skip.y // SQUARE_SIZE, skip.x // SQUARE_SIZE
-						skipped.append((row_s, col_s))
+						row_col = (skip.row, skip.col)
+						skipped.append(row_col)
 						skipped = list(set(skipped))
 						moves[next_case].extend(skipped)
 						TestPiece = Piece(*next_case, piece.color)
@@ -154,14 +154,16 @@ class Board:
 	def check_diagonal(self, piece, case, row_dir, col_dir, killed):
 		to_check = self.get_next_case(case, row_dir, col_dir)
 		checked = defaultdict(list)
+		skipped = []
 		while to_check:
 			if not self.is_empty(*to_check) and piece.color != self.get_piece(*to_check).color:
 				next_case = self.get_next_case(to_check, row_dir, col_dir)
 				if next_case and self.is_empty(*next_case):
-					killed.append(to_check)
-					checked[next_case].extend(killed)
+					skipped.append(to_check)
+					skipped.extend(killed)
+					checked[next_case] = skipped
 					TestPiece = Piece(*to_check, piece.color)
-					other_moves = self.check_rev_diagonal(TestPiece, next_case, killed)
+					other_moves = self.check_rev_diagonal(TestPiece, next_case, skipped)
 					checked.update(other_moves)
 				else:
 					break
