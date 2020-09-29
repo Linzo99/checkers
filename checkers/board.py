@@ -33,7 +33,24 @@ class Board:
 
 	def remove(self, positions):
 		for pos in positions:
+			piece = self.get_piece(*pos)
+			if piece and piece.color == WHITE:
+				self.white_left -= 1
+			elif piece and piece.color == RED:
+				self.red_left -= 1
 			self.board[pos[0]][pos[1]] = 0
+
+	def evaluate(self):
+		score = self.white_left - self.red_left
+		return score
+
+	def get_moving_pieces(self, color):
+		pieces = []
+		for row in self.board:
+			for piece in row:
+				if piece!=0 and piece.color == color:
+					pieces.append(piece)
+		return pieces
 
 	def draw(self, win):
 		self.draw_squares(win)
@@ -42,6 +59,13 @@ class Board:
 				piece = self.board[row][col]
 				if piece != 0:
 					piece.draw(win)
+
+	def iswinner(self):
+		if self.red_left <= 0:
+			return WHITE
+		if self.white_left <= 0:
+			return RED
+		return None
 
 	def move(self, piece, row, col):
 		self.board[piece.row][piece.col], self.board[row][col] = self.board[row][col], self.board[piece.row][piece.col]
@@ -56,6 +80,7 @@ class Board:
 
 	def get_piece(self, row, col):
 		return self.board[row][col]
+
 
 	def is_empty(self, row, col):
 		if(0<=row<=7) and (0<=col<=7):

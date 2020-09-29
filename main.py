@@ -1,5 +1,5 @@
 import pygame
-from checkers.constants import WIDTH, HEIGHT, SQUARE_SIZE
+from checkers.constants import WIDTH, HEIGHT, SQUARE_SIZE, WHITE
 from checkers.game import Game
 
 FPS = 60
@@ -19,6 +19,9 @@ def main():
 	game = Game(WIN)
 	while run:
 		clock.tick(FPS)
+		if game.turn == WHITE:
+			game.ai_move()
+			game.change_turn()
 
 		for event in pygame.event.get():
 			if event.type == pygame.QUIT:

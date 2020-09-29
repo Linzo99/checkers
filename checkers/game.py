@@ -1,6 +1,7 @@
 import pygame
 from .constants import RED, WHITE, BLUE, SQUARE_SIZE
 from .board import Board
+from minimax.algo import minimax
 
 class Game:
 	def __init__(self, win):
@@ -64,3 +65,10 @@ class Game:
 			self.turn = WHITE
 		else:
 			self.turn = RED
+
+	def ai_move(self):
+		sc, board = minimax(self.board, 3, True)
+		self.board = board
+
+	def get_board(self):
+		return self.board
